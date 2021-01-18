@@ -1,0 +1,83 @@
+from aiogram import Bot, types
+from aiogram.types import ChatActions
+from aiogram.utils import executor
+from aiogram.utils.markdown import text
+from aiogram.dispatcher import Dispatcher
+
+import os
+import asyncio
+import re
+import translators as ts
+from deep_translator import GoogleTranslator
+
+loop = asyncio.get_event_loop()
+bot = Bot(token='input token')
+dp = Dispatcher(bot, loop=loop)
+
+import keyboards as kb
+from model import get_voc,  translator
+from gtts import gTTS
+
+
+
+@dp.callback_query_handler(lambda c: c.data and c.data.startswith('btn'))
+async def process_callback_kb1btn1(callback_query: types.CallbackQuery):
+    print(callback_query.data)
+    code = callback_query.data[-1]
+    if code.isdigit():
+        code = int(code)
+    for index in range(1, 7):
+        if code == index:
+            global status
+            status = code
+            await bot.send_message(callback_query.from_user.id, text=f'Ваш уровень {callback_query.data[3:-1]}!'
+                                    f' А теперь можно скинуть Youtube видео на английском, и я сделаю персональный словарь')
+
+
+@dp.message_handler(commands=['2'])
+async def process_command_2(message: types.Message):
+    await message.reply("Вам нужно выбрать уровень, чтобы подобрать словарь", reply_markup=kb.button_level_keyboard)
+
+
+
+@dp.message_handler()
+async def echo_message(msg: types.Message):
+    if re.search(r'http', msg.text) is not None and status in range(1, 7):
+
+        #await bot.send_message(msg.from_user.id, msg.text)
+        # print(len(get_voc(msg.text, 1)))
+        # print(len(get_voc(msg.text, 2)))
+        # print(len(get_voc(msg.text, 3)))
+        # print(len(get_voc(msg.text, 4)))
+        # print(len(get_voc(msg.text, 5)))
+        # print(len(get_voc(msg.text, 6)))
+
+        #await bot.send_message(msg.from_user.id, output(get_voc(msg.text)))
+        try:
+            for word in get_voc(msg.text, status):
+                try:
+                    myobj = gTTS(text=word,  slow=False)
+                    TEXT_FILE = word+'.mp3'
+                    myobj.save(TEXT_FILE)
+                    print(TEXT_FILE)
+                    #await bot.send_message(msg.from_user.id, word + " - " + translator.translate(word, dest='ru').text)
+                    await bot.send_chat_action(msg.from_user.id, ChatActions.UPLOAD_AUDIO)
+                    print(GoogleTranslator(source='auto', target='ru').translate(word))
+                    #await asyncio.sleep(1)
+                    #await bot.send_document(msg.from_user.id, TEXT_FILE, caption=word + " - " + translator.translate(word, dest='ru').text)
+                    #await bot.send_audio(msg.from_user.id, open("C:\\Users\\37544\\PycharmProjects\\untitled3\\"+TEXT_FILE,"rb"), caption=word + " - " + translator.translate(word, dest='ru').text, title=word, performer='Steshenko Artem')
+                    await bot.send_audio(msg.from_user.id,
+                                         open("C:\\Users\\37544\\PycharmProjects\\untitled3\\" + TEXT_FILE, "rb"),
+                                         caption=word + " - " + GoogleTranslator(source='auto', target='ru').translate(word), title=word,
+                                         performer='Steshenko Artem')
+                    os.remove(TEXT_FILE)
+                except:
+                    pass
+        except:
+            await bot.send_message(msg.from_user.id, "В этом видео нет слов на английском языке для вас")
+
+    else:
+        await msg.reply("Вам нужно выбрать уровень, чтобы подобрать словарь", reply_markup=kb.button_level_keyboard)
+
+if __name__ == '__main__':
+    executor.start_polling(dp)
