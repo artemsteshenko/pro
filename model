@@ -1,0 +1,65 @@
+from youtube_transcript_api import YouTubeTranscriptApi
+import pandas as pd
+import re
+import nltk
+# nltk.download('stopwords')
+
+from nltk.corpus import stopwords
+stopWords = set(stopwords.words('english'))
+# nltk.download('punkt')
+from nltk.tokenize import word_tokenize, sent_tokenize
+# nltk.download('wordnet')
+wnl = nltk.WordNetLemmatizer()
+from googletrans import Translator
+translator = Translator()
+
+
+data = pd.read_csv('unigram_freq.csv')
+
+words=[]
+words = [word for word in data.word if word not in stopWords and word not in words and len(str(word)) > 2]
+
+def output(vocab):
+  output = ''
+  for i in vocab:
+    output += i + ','
+  return output
+
+def get_voc(test_links, status=3):
+    pattern = r'(?:https?:\/\/)?(?:[0-9A-Z-]+\.)?(?:youtube|youtu|youtube-nocookie)\.(?:com|be)\/(?:watch\?v=|watch\?.+&v=|embed\/|v\/|.+\?v=)?([^&=\n%\?]{11})'
+    result = re.findall(pattern, test_links, re.MULTILINE | re.IGNORECASE)
+    dict = YouTubeTranscriptApi.get_transcript(result[0])
+
+    text = ''
+    for dic in dict:
+        text += dic['text'] + " "
+
+    tokens = word_tokenize(text.lower())
+
+    words_from_video = []
+    words_from_video = [wnl.lemmatize(word) for word in tokens if
+                        word not in stopWords and word not in words_from_video and len(str(word)) > 2]
+    words_from_video = list(set(words_from_video))
+
+    vocab = []
+    for word in words_from_video:
+        if status == 1:
+            if word in words[:1000]:
+                vocab.append(word)
+        if status == 2:
+            if word in words[1000:4000]:
+                vocab.append(word)
+        if status == 3:
+            if word in words[4000:7000]:
+                vocab.append(word)
+        if status == 4:
+            if word in words[7000:15000]:
+                vocab.append(word)
+        if status == 5:
+            if word in words[15000:25000]:
+                vocab.append(word)
+        if status == 6:
+            if word in words[25000:]:
+                vocab.append(word)
+
+    return vocab
